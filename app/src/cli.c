@@ -35,6 +35,7 @@ enum {
     OPT_DISPLAY_ID,
     OPT_RENDER_DRIVER,
     OPT_NO_MIPMAPS,
+    OPT_NO_HARDWARE_DECODING,
     OPT_VIDEO_CODEC_OPTIONS,
     OPT_FORCE_ADB_FORWARD,
     OPT_DISABLE_SCREENSAVER,
@@ -645,6 +646,11 @@ static const struct sc_option options[] = {
         .text = "By default, on MediaCodec error, scrcpy automatically tries "
                 "again with a lower definition.\n"
                 "This option disables this behavior.",
+    },
+    {
+        .longopt_id = OPT_NO_HARDWARE_DECODING,
+        .longopt = "no-hardware-decoding",
+        .text = "Disable hardware video decoding on the computer.",
     },
     {
         .longopt_id = OPT_NO_KEY_REPEAT,
@@ -2693,6 +2699,9 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                 break;
             case OPT_NO_MIPMAPS:
                 opts->mipmaps = false;
+                break;
+            case OPT_NO_HARDWARE_DECODING:
+                opts->hardware_decoding = false;
                 break;
             case OPT_NO_KEY_REPEAT:
                 opts->forward_key_repeat = false;

@@ -20,6 +20,9 @@
 #include "demuxer.h"
 #include "events.h"
 #include "file_pusher.h"
+#ifdef HAVE_HWACCEL
+# include "hwaccel.h"
+#endif
 #include "keyboard_sdk.h"
 #include "mouse_sdk.h"
 #include "recorder.h"
@@ -439,6 +442,20 @@ scrcpy(struct scrcpy_options *options) {
 
     // Set hints before starting the server thread to avoid race conditions in
     // SDL
+#ifdef HAVE_HWACCEL
+    // Never force a render driver here: SDL only tries the driver it is given,
+    // so pinning one would remove its fallback to the other backends. Its
+    // default backend is already the one matching the hardware decoding API on
+    // every supported platform.
+    bool hwaccel_may_be_used = options->video_playback
+                            && options->hardware_decoding;
+# ifdef HAVE_V4L2
+    hwaccel_may_be_used &= !options->v4l2_device;
+# endif
+    if (hwaccel_may_be_used && !sc_hwaccel_set_hints()) {
+        LOGW("Could not set hardware decoding hints");
+    }
+#endif
     sc_sdl_set_hints(options->render_driver, options->disable_screensaver);
 
     if (!sc_server_start(&s->server)) {
@@ -780,6 +797,7 @@ aoa_complete:
             .render_fit = options->render_fit,
             .orientation = options->display_orientation,
             .mipmaps = options->mipmaps,
+            .hardware_decoding = options->hardware_decoding,
             .fullscreen = options->fullscreen,
             .start_fps_counter = options->start_fps_counter,
         };
@@ -788,6 +806,37 @@ aoa_complete:
             goto end;
         }
         screen_initialized = true;
+
+#ifdef HAVE_HWACCEL
+        if (options->video_playback && options->hardware_decoding) {
+            bool hwaccel_allowed = true;
+# ifdef HAVE_V4L2
+            // The V4L2 sink requires CPU-addressable frames.
+            hwaccel_allowed = !options->v4l2_device;
+# endif
+            if (!hwaccel_allowed) {
+                LOGI("Hardware decoding unavailable: the V4L2 sink requires "
+                     "CPU-addressable frames; using software decoding");
+            } else if (!sc_texture_supports_hardware_decoding(
+                           &s->screen.tex)) {
+                const char *reason =
+                    sc_texture_get_hardware_decoding_unavailable_reason(
+                        &s->screen.tex);
+                LOGI("Hardware decoding unavailable: %s; using software "
+                     "decoding", reason);
+            } else {
+                struct sc_hwaccel *hwaccel =
+                    sc_texture_get_hwaccel(&s->screen.tex);
+                sc_demuxer_enable_hardware_decoding(&s->video_demuxer,
+                                                     hwaccel);
+            }
+        }
+#elif defined(__linux__) || defined(_WIN32) || defined(__APPLE__)
+        if (options->video_playback && options->hardware_decoding) {
+            LOGI("Hardware decoding unavailable: support was not compiled "
+                 "in; using software decoding");
+        }
+#endif
 
         if (options->video_playback) {
             struct sc_frame_source *src = &s->video_decoder.frame_source;
