@@ -97,6 +97,32 @@ check `--video-codec-options` in the manpage or in `scrcpy --help`.
 [`MediaFormat`]: https://developer.android.com/reference/android/media/MediaFormat
 
 
+## Hardware decoding
+
+scrcpy automatically uses the platform video decoding API when it is available:
+
+ - VA-API on Linux. Decoded NV12 surfaces are imported into the SDL OpenGL
+   renderer through DMA-BUF and EGL without a copy through system memory. This
+   requires the renderer to use EGL: this is the case on Wayland, but on X11
+   SDL uses GLX by default (set `SDL_VIDEO_FORCE_EGL=1` to switch to EGL).
+ - D3D11 on Windows. FFmpeg decodes with the SDL renderer's D3D11 device, then
+   copies each decoded surface into the render texture entirely on the GPU.
+ - VideoToolbox on macOS. The decoded `CVPixelBuffer` is imported directly by
+   the SDL Metal renderer without a copy through system memory.
+
+If hardware decoding or native-surface rendering is unavailable, scrcpy falls
+back to software decoding or a system-memory transfer. Hardware decoding may
+be disabled explicitly:
+
+```bash
+scrcpy --no-hardware-decoding
+```
+
+The feature is enabled by default. On Linux, EGL and libdrm development files
+are also required. It may be disabled at build time with
+`-Dhardware_decoding=disabled`.
+
+
 ## Encoder
 
 Several encoders may be available on the device. They can be listed by:
