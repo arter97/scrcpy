@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -267,6 +268,29 @@ sc_server_on_disconnected(struct sc_server *server, void *userdata) {
     // Do nothing, the disconnection will be handled by the "stream stopped"
     // event
 }
+
+#ifdef HAVE_HWACCEL
+// Number of decoded frames scrcpy may hold at once, outside of the decoder,
+// or -1 to let the decoder decide.
+static int
+sc_hwaccel_count_buffered_frames(const struct scrcpy_options *options) {
+    if (!options->video_buffer) {
+        return -1;
+    }
+
+    double fps = 60;
+    if (options->max_fps) {
+        char *end;
+        double parsed = strtod(options->max_fps, &end);
+        if (end != options->max_fps && parsed > 0) {
+            fps = parsed;
+        }
+    }
+
+    double delayed = fps * SC_TICK_TO_MS(options->video_buffer) / 1000 + 1;
+    return delayed < INT_MAX ? (int) delayed : INT_MAX;
+}
+#endif
 
 static void
 sc_timeout_on_timeout(struct sc_timeout *timeout, void *userdata) {
@@ -827,8 +851,10 @@ aoa_complete:
             } else {
                 struct sc_hwaccel *hwaccel =
                     sc_texture_get_hwaccel(&s->screen.tex);
-                sc_demuxer_enable_hardware_decoding(&s->video_demuxer,
-                                                     hwaccel);
+                int buffered_frames =
+                    sc_hwaccel_count_buffered_frames(options);
+                sc_demuxer_enable_hardware_decoding(&s->video_demuxer, hwaccel,
+                                                    buffered_frames);
             }
         }
 #elif defined(__linux__) || defined(_WIN32) || defined(__APPLE__)

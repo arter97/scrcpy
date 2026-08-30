@@ -22,6 +22,7 @@ struct sc_demuxer {
 
 #ifdef HAVE_HWACCEL
     struct sc_hwaccel *hwaccel;
+    int hwaccel_buffered_frames;
 #endif
 };
 
@@ -44,7 +45,8 @@ sc_demuxer_init(struct sc_demuxer *demuxer, const char *name, sc_socket socket,
 #ifdef HAVE_HWACCEL
 void
 sc_demuxer_enable_hardware_decoding(struct sc_demuxer *demuxer,
-                                    struct sc_hwaccel *hwaccel);
+                                    struct sc_hwaccel *hwaccel,
+                                    int buffered_frames);
 #endif
 
 bool

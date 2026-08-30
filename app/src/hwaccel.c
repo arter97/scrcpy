@@ -184,9 +184,20 @@ sc_hwaccel_destroy(struct sc_hwaccel *hwaccel) {
 #endif
 }
 
+#ifdef SC_HAVE_D3D11
+// FFmpeg allocates the decoder surfaces as a single D3D11 texture array, which
+// the driver specification limits to 64 slices (MAX_ARRAY_SIZE in
+// libavutil/hwcontext_d3d11va.c). The decoder keeps some of them for itself:
+// ff_dxva2_common_frame_params() in libavcodec/dxva2.c takes 1 work surface
+// plus the possible references (16 for H.264/H.265, 8 for VP9/AV1), then
+// ff_decode_get_hw_frames_ctx() in libavcodec/decode.c adds 3 to guarantee 4
+// work surfaces. extra_hw_frames may claim the rest.
+# define SC_HWACCEL_MAX_BUFFERED_FRAMES (64 - 20)
+#endif
+
 bool
-sc_hwaccel_configure_decoder(struct sc_hwaccel *hwaccel,
-                             AVCodecContext *ctx) {
+sc_hwaccel_configure_decoder(struct sc_hwaccel *hwaccel, AVCodecContext *ctx,
+                             int buffered_frames) {
     assert(hwaccel->available);
     assert(ctx->codec_type == AVMEDIA_TYPE_VIDEO);
 #ifndef SC_HAVE_D3D11
@@ -222,6 +233,19 @@ sc_hwaccel_configure_decoder(struct sc_hwaccel *hwaccel,
         av_buffer_unref(&ctx->hw_device_ctx);
         return false;
     }
+
+#ifdef SC_HWACCEL_MAX_BUFFERED_FRAMES
+    if (buffered_frames > SC_HWACCEL_MAX_BUFFERED_FRAMES) {
+        LOGW("The video buffer is too large for " SC_HWACCEL_NAME " decoding: "
+             "only %d delayed frames fit in the surface pool. Decrease "
+             "--video-buffer or use --no-hardware-decoding.",
+             SC_HWACCEL_MAX_BUFFERED_FRAMES);
+        buffered_frames = SC_HWACCEL_MAX_BUFFERED_FRAMES;
+    }
+    ctx->extra_hw_frames = buffered_frames;
+#else
+    (void) buffered_frames;
+#endif
 
     // Some backends do not expose plain Baseline (only Constrained Baseline).
     // Hardware supporting Main/High can still decode Baseline.

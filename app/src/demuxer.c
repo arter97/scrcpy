@@ -259,7 +259,8 @@ run_demuxer(void *data) {
 
 #ifdef HAVE_HWACCEL
         if (demuxer->hwaccel) {
-            sc_hwaccel_configure_decoder(demuxer->hwaccel, codec_ctx);
+            sc_hwaccel_configure_decoder(demuxer->hwaccel, codec_ctx,
+                                         demuxer->hwaccel_buffered_frames);
         }
 #endif
 
@@ -373,6 +374,7 @@ sc_demuxer_init(struct sc_demuxer *demuxer, const char *name, sc_socket socket,
     sc_packet_source_init(&demuxer->packet_source);
 #ifdef HAVE_HWACCEL
     demuxer->hwaccel = NULL;
+    demuxer->hwaccel_buffered_frames = -1;
 #endif
 
     assert(cbs && cbs->on_ended);
@@ -384,9 +386,11 @@ sc_demuxer_init(struct sc_demuxer *demuxer, const char *name, sc_socket socket,
 #ifdef HAVE_HWACCEL
 void
 sc_demuxer_enable_hardware_decoding(struct sc_demuxer *demuxer,
-                                    struct sc_hwaccel *hwaccel) {
+                                    struct sc_hwaccel *hwaccel,
+                                    int buffered_frames) {
     assert(hwaccel);
     demuxer->hwaccel = hwaccel;
+    demuxer->hwaccel_buffered_frames = buffered_frames;
 }
 #endif
 
