@@ -46,8 +46,8 @@ void
 sc_hwaccel_reset(struct sc_hwaccel *hwaccel);
 
 bool
-sc_hwaccel_configure_decoder(struct sc_hwaccel *hwaccel,
-                             AVCodecContext *ctx);
+sc_hwaccel_configure_decoder(struct sc_hwaccel *hwaccel, AVCodecContext *ctx,
+                             int buffered_frames);
 
 bool
 sc_hwaccel_is_frame(const AVFrame *frame);
