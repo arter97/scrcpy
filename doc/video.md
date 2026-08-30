@@ -56,7 +56,8 @@ scrcpy -b 2M                     # short version
 
 ## Frame rate
 
-The capture frame rate can be limited:
+By default, the capture frame rate is limited to 60 fps. To configure a
+different limit:
 
 ```bash
 scrcpy --max-fps=15

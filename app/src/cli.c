@@ -529,7 +529,8 @@ static const struct sc_option options[] = {
         .longopt = "max-fps",
         .argdesc = "value",
         .text = "Limit the frame rate of screen capture (officially supported "
-                "since Android 10, but may work on earlier versions).",
+                "since Android 10, but may work on earlier versions).\n"
+                "Default is 60.",
     },
     {
         .longopt_id = OPT_MIN_SIZE_ALIGNMENT,
